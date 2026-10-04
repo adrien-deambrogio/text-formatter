@@ -1,11 +1,9 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+  "id": "text-formatter",
+  "name": "Text Formatter",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Format selected text: remove returns, shift header levels, collapse double returns.",
+  "author": "You",
+  "isDesktopOnly": false
 }

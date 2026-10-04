@@ -1,114 +1,59 @@
-import {
-	Editor,
-	MarkdownView,
-	MarkdownFileInfo,
-	Modal,
-	Notice,
-	Plugin,
-} from 'obsidian';
-import {
-	DEFAULT_SETTINGS,
-	MyPluginSettings,
-	SampleSettingTab,
-} from './settings';
+import { Plugin } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings!: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
+/**
+ * Text Formatter: commands that reformat the currently selected text.
+ * Run them from the command palette or bind hotkeys in Settings → Hotkeys.
+ */
+export default class TextFormatter extends Plugin {
+	onload() {
 		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			},
+			id: 'remove-return',
+			name: 'Remove returns',
+			callback: () => this.removeReturn(),
 		});
-		// This adds an editor command that can perform some operation on the current editor instance
+
 		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (
-				editor: Editor,
-				_ctx: MarkdownView | MarkdownFileInfo,
-			) => {
-				editor.replaceSelection('Sample editor command');
-			},
+			id: 'double-to-single-return',
+			name: 'Convert double returns to single',
+			callback: () => this.doubleToSingleReturn(),
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
+
 		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView =
-					this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			},
+			id: 'level-down-headers',
+			name: 'Level down headers',
+			callback: () => this.levelDownHeaders(),
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(activeDocument, 'click', (_evt: MouseEvent) => {
-			new Notice('Click');
+		this.addCommand({
+			id: 'level-up-headers',
+			name: 'Level up headers',
+			callback: () => this.levelUpHeaders(),
 		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(
-			window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
-		);
 	}
 
-	onunload() {}
-
-	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>,
-		);
+	/** Join all lines into one, replacing each line break (and surrounding spaces) with a single space. */
+	removeReturn() {
+		this.transform((s) => s.replace(/\s*\n+\s*/g, ' '));
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
+	/** Collapse runs of blank lines into a single line break. */
+	doubleToSingleReturn() {
+		this.transform((s) => s.replace(/\n{2,}/g, '\n'));
 	}
 
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+	/** Make headers deeper by one level (# → ##), up to a maximum of ######. */
+	levelDownHeaders() {
+		this.transform((s) => s.replace(/^(#{1,5})(?= )/gm, '$1#'));
+	}
+
+	/** Make headers shallower by one level (## → #); top-level headers are left unchanged. */
+	levelUpHeaders() {
+		this.transform((s) => s.replace(/^#(#+)(?= )/gm, '$1'));
+	}
+
+	/** Apply `fn` to the current selection in the active editor and replace it with the result. */
+	private transform(fn: (s: string) => string) {
+		const editor = this.app.workspace.activeEditor?.editor;
+		if (editor) editor.replaceSelection(fn(editor.getSelection()));
 	}
 }
